@@ -22,6 +22,7 @@ phony_targets := \
 	rootfs_initial \
 	rootfs_final \
 	submodules \
+	test \
 
 .PHONY: default $(phony_targets)
 default: .stamp_all
@@ -62,9 +63,13 @@ rootfs_final: .stamp_rootfs_final
 	@fakeroot bash -c 'cd $(BUILD_DIR)/rootfs_final && find . | cpio --create --format=newc' > $(IMAGES_DIR)/rootfs_final.cpio
 	@touch $@
 
+test: .stamp_linux .stamp_rootfs_final
+	@echo "=== $@ ==="
+	@$(IMAGES_DIR)/vmlinux mem=32M initrd=$(IMAGES_DIR)/rootfs_final.cpio noreboot
+
 all: .stamp_all
 	@echo "=== $@ ==="
-.stamp_all: .stamp_linux .stamp_rootfs_final
+.stamp_all: test
 	@echo "=== $@ ==="
 	@touch $@
 
