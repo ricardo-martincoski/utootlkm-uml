@@ -1,6 +1,7 @@
 BASE_DIR := $(shell readlink -f .)
 BUILDROOT_DIR := $(BASE_DIR)/buildroot
 LINUX_DIR := $(BASE_DIR)/linux
+DRIVERS_DIR := $(BASE_DIR)/drivers
 OUTPUT_DIR := $(BASE_DIR)/output
 BUILD_DIR := $(OUTPUT_DIR)/build
 IMAGES_DIR := $(OUTPUT_DIR)/images
@@ -9,6 +10,8 @@ real_targets := \
 	.stamp_all \
 	.stamp_linux \
 	.stamp_modules_intree \
+	.stamp_modules_out_of_tree \
+	.stamp_modules_prepare \
 	.stamp_rootfs_edit \
 	.stamp_rootfs_extract \
 	.stamp_rootfs_final \
@@ -23,6 +26,8 @@ phony_targets := \
 	help \
 	linux \
 	modules_intree \
+	modules_out_of_tree \
+	modules_prepare \
 	rootfs_edit \
 	rootfs_extract \
 	rootfs_final \
@@ -52,6 +57,30 @@ modules_intree: .stamp_modules_intree
 	@$(MAKE) ARCH=um -C $(BUILD_DIR)/linux modules_install INSTALL_MOD_PATH=$(BUILD_DIR)/rootfs_final
 	@touch $@
 
+modules_prepare: .stamp_modules_prepare
+	@echo "=== $@ ==="
+.stamp_modules_prepare:
+	@echo "=== $@ ==="
+	@$(MAKE) ARCH=um O=$(BUILD_DIR)/modules -C $(LINUX_DIR) defconfig
+	@install -D $(BASE_DIR)/configs/linux.defconfig $(BUILD_DIR)/modules/.config
+	@$(MAKE) ARCH=um -C $(BUILD_DIR)/modules olddefconfig
+	@$(MAKE) ARCH=um -C $(BUILD_DIR)/modules modules_prepare
+	@touch $@
+
+modules_out_of_tree: .stamp_modules_out_of_tree
+	@echo "=== $@ ==="
+.stamp_modules_out_of_tree: .stamp_modules_prepare
+	@echo "=== $@ ==="
+	@rm -rf $(BUILD_DIR)/drivers
+	@mkdir -p $(BUILD_DIR)/drivers
+	@$(foreach driver, $(wildcard $(DRIVERS_DIR)/*), \
+		echo "--- $@ $(notdir $(driver)) ---" \
+			&& rsync -vau $(driver)/ $(BUILD_DIR)/drivers/$(notdir $(driver))/ \
+			&& $(MAKE) ARCH=um -C $(BUILD_DIR)/modules M=$(BUILD_DIR)/drivers/$(notdir $(driver))/ \
+			&& $(MAKE) ARCH=um -C $(BUILD_DIR)/modules M=$(BUILD_DIR)/drivers/$(notdir $(driver))/ modules_install INSTALL_MOD_PATH=$(BUILD_DIR)/rootfs_final \
+		)
+	@touch $@
+
 rootfs_initial: .stamp_rootfs_initial
 	@echo "=== $@ ==="
 .stamp_rootfs_initial: .stamp_submodules
@@ -78,7 +107,7 @@ rootfs_extract: .stamp_rootfs_extract
 
 rootfs_edit: .stamp_rootfs_edit
 	@echo "=== $@ ==="
-.stamp_rootfs_edit: .stamp_modules_intree
+.stamp_rootfs_edit: .stamp_modules_intree .stamp_modules_out_of_tree
 	@echo "=== $@ ==="
 	@touch $@
 
