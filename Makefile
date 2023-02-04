@@ -37,6 +37,7 @@ linux: .stamp_linux
 	@echo "=== $@ ==="
 .stamp_linux: .stamp_submodules
 	@echo "=== $@ ==="
+	@rm -rf $(BUILD_DIR)/linux
 	@$(MAKE) ARCH=um O=$(BUILD_DIR)/linux -C $(LINUX_DIR) defconfig
 	@install -D $(BASE_DIR)/configs/linux.defconfig $(BUILD_DIR)/linux/.config
 	@$(MAKE) ARCH=um -C $(BUILD_DIR)/linux olddefconfig
@@ -55,6 +56,7 @@ rootfs_initial: .stamp_rootfs_initial
 	@echo "=== $@ ==="
 .stamp_rootfs_initial: .stamp_submodules
 	@echo "=== $@ ==="
+	@rm -rf $(BUILD_DIR)/rootfs_initial
 	@$(MAKE) O=$(BUILD_DIR)/rootfs_initial -C $(BUILDROOT_DIR) defconfig
 	@install -D $(BASE_DIR)/configs/rootfs_defconfig $(BUILD_DIR)/rootfs_initial/.config
 	@$(MAKE) -C $(BUILD_DIR)/rootfs_initial olddefconfig
