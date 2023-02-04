@@ -8,8 +8,11 @@ IMAGES_DIR := $(OUTPUT_DIR)/images
 real_targets := \
 	.stamp_all \
 	.stamp_linux \
-	.stamp_rootfs_initial \
+	.stamp_modules_intree \
+	.stamp_rootfs_edit \
+	.stamp_rootfs_extract \
 	.stamp_rootfs_final \
+	.stamp_rootfs_initial \
 	.stamp_submodules \
 
 phony_targets := \
@@ -19,8 +22,11 @@ phony_targets := \
 	distclean \
 	help \
 	linux \
-	rootfs_initial \
+	modules_intree \
+	rootfs_edit \
+	rootfs_extract \
 	rootfs_final \
+	rootfs_initial \
 	submodules \
 	test \
 
@@ -38,6 +44,13 @@ linux: .stamp_linux
 	@install -D $(BUILD_DIR)/linux/vmlinux $(IMAGES_DIR)/vmlinux
 	@touch $@
 
+modules_intree: .stamp_modules_intree
+	@echo "=== $@ ==="
+.stamp_modules_intree: .stamp_linux .stamp_rootfs_extract
+	@echo "=== $@ ==="
+	@$(MAKE) ARCH=um -C $(BUILD_DIR)/linux modules_install INSTALL_MOD_PATH=$(BUILD_DIR)/rootfs_final
+	@touch $@
+
 rootfs_initial: .stamp_rootfs_initial
 	@echo "=== $@ ==="
 .stamp_rootfs_initial: .stamp_submodules
@@ -49,9 +62,9 @@ rootfs_initial: .stamp_rootfs_initial
 	@install -D $(BUILD_DIR)/rootfs_initial/images/rootfs.cpio $(IMAGES_DIR)/rootfs_initial.cpio
 	@touch $@
 
-rootfs_final: .stamp_rootfs_final
+rootfs_extract: .stamp_rootfs_extract
 	@echo "=== $@ ==="
-.stamp_rootfs_final: .stamp_linux .stamp_rootfs_initial
+.stamp_rootfs_extract: .stamp_rootfs_initial
 	@echo "=== $@ ==="
 	@rm -rf $(BUILD_DIR)/rootfs_final
 	@mkdir -p $(BUILD_DIR)/rootfs_final
@@ -59,7 +72,18 @@ rootfs_final: .stamp_rootfs_final
 	@sed '/mknod.*console/d' -i $(BUILD_DIR)/rootfs_final/init
 	@sed '/#!\/bin\/sh/amknod /dev/console c 5 1' -i $(BUILD_DIR)/rootfs_final/init
 	@rm -f $(BUILD_DIR)/rootfs_final/dev/console
-	@$(MAKE) ARCH=um -C $(BUILD_DIR)/linux modules_install INSTALL_MOD_PATH=$(BUILD_DIR)/rootfs_final
+	@touch $@
+
+rootfs_edit: .stamp_rootfs_edit
+	@echo "=== $@ ==="
+.stamp_rootfs_edit: .stamp_modules_intree
+	@echo "=== $@ ==="
+	@touch $@
+
+rootfs_final: .stamp_rootfs_final
+	@echo "=== $@ ==="
+.stamp_rootfs_final: .stamp_rootfs_edit
+	@echo "=== $@ ==="
 	@fakeroot bash -c 'cd $(BUILD_DIR)/rootfs_final && find . | cpio --create --format=newc' > $(IMAGES_DIR)/rootfs_final.cpio
 	@touch $@
 
