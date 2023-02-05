@@ -154,7 +154,14 @@ distclean: clean
 	@rm -rf $(LINUX_DIR)
 
 help:
+	@echo "**utootlkm-uml** stands for *Unit Tests for Out-Of-Tree Linux Kernel Modules,"
+	@echo "User-Mode Linux variant*."
+	@echo
+	@echo "This project can be used as an infrastructure to run unit tests for any open"
+	@echo "source Linux kernel module that is maintained in its own repository (out of the"
+	@echo "main Linux git tree)."
+	@echo
 	@echo "Usage:"
-	@echo "  make"
+	@echo "  make - build UML and drivers and start the VM"
 	@echo "  make clean"
 	@echo "  make distclean - 'clean' + force submodule to be cloned"
