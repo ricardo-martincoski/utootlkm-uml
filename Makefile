@@ -90,6 +90,7 @@ rootfs_initial: .stamp_rootfs_initial
 	@$(MAKE) O=$(BUILD_DIR)/rootfs_initial -C $(BUILDROOT_DIR) defconfig
 	@install -D $(BASE_DIR)/configs/rootfs_defconfig $(BUILD_DIR)/rootfs_initial/.config
 	@$(MAKE) -C $(BUILD_DIR)/rootfs_initial olddefconfig
+	@$(MAKE) -C $(BUILD_DIR)/rootfs_initial source
 	@$(MAKE) -C $(BUILD_DIR)/rootfs_initial
 	@install -D $(BUILD_DIR)/rootfs_initial/images/rootfs.cpio $(IMAGES_DIR)/rootfs_initial.cpio
 	@touch $@
