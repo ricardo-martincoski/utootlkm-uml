@@ -6,6 +6,9 @@ DOWNLOAD_DIR := $(BASE_DIR)/download
 OUTPUT_DIR := $(BASE_DIR)/output
 BUILD_DIR := $(OUTPUT_DIR)/build
 IMAGES_DIR := $(OUTPUT_DIR)/images
+DOCKER_IMAGE := ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml
+
+date := $(shell date +%Y%m%d.%H%M --utc)
 
 real_targets := \
 	.stamp_all \
@@ -153,6 +156,13 @@ distclean: clean
 	@rm -rf $(DOWNLOAD_DIR)
 	@rm -rf $(LINUX_DIR)
 
+docker-image:
+	@echo "=== $@ ==="
+	@docker build -t registry.gitlab.com/$(DOCKER_IMAGE):$(date) support/docker
+	@sed -e 's,^image:.*,image: $$CI_REGISTRY/$(DOCKER_IMAGE):$(date),g' -i .gitlab-ci.yml
+	@echo And now do:
+	@echo docker push registry.gitlab.com/$(DOCKER_IMAGE):$(date)
+
 help:
 	@echo "**utootlkm-uml** stands for *Unit Tests for Out-Of-Tree Linux Kernel Modules,"
 	@echo "User-Mode Linux variant*."
@@ -165,3 +175,4 @@ help:
 	@echo "  make - build UML and drivers and start the VM"
 	@echo "  make clean"
 	@echo "  make distclean - 'clean' + force submodule to be cloned"
+	@echo "  make docker-image - generate a new docker image to be uploaded"
