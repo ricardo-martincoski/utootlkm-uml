@@ -101,7 +101,7 @@ rootfs_extract: .stamp_rootfs_extract
 	@echo "=== $@ ==="
 	@rm -rf $(BUILD_DIR)/rootfs_final
 	@mkdir -p $(BUILD_DIR)/rootfs_final
-	@fakeroot bash -c 'cpio --extract --directory=$(BUILD_DIR)/rootfs_final --make-directories < $(IMAGES_DIR)/rootfs_initial.cpio'
+	@fakeroot -- cpio --extract --directory=$(BUILD_DIR)/rootfs_final --make-directories --file=$(IMAGES_DIR)/rootfs_initial.cpio
 	@sed '/mknod.*console/d' -i $(BUILD_DIR)/rootfs_final/init
 	@sed '/#!\/bin\/sh/amknod /dev/console c 5 1' -i $(BUILD_DIR)/rootfs_final/init
 	@rm -f $(BUILD_DIR)/rootfs_final/dev/console
