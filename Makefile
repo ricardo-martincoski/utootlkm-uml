@@ -2,6 +2,7 @@ BASE_DIR := $(shell readlink -f .)
 BUILDROOT_DIR := $(BASE_DIR)/buildroot
 LINUX_DIR := $(BASE_DIR)/linux
 DRIVERS_DIR := $(BASE_DIR)/drivers
+DOWNLOAD_DIR := $(BASE_DIR)/download
 OUTPUT_DIR := $(BASE_DIR)/output
 BUILD_DIR := $(OUTPUT_DIR)/build
 IMAGES_DIR := $(OUTPUT_DIR)/images
@@ -148,6 +149,7 @@ clean: clean-stamps
 distclean: clean
 	@echo "=== $@ ==="
 	@rm -rf $(BUILDROOT_DIR)
+	@rm -rf $(DOWNLOAD_DIR)
 	@rm -rf $(LINUX_DIR)
 
 help:
