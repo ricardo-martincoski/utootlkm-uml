@@ -8,10 +8,14 @@ BUILD_DIR := $(OUTPUT_DIR)/build
 IMAGES_DIR := $(OUTPUT_DIR)/images
 DOCKER_IMAGE := ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml
 
+check_inside_docker := $(shell if [ "`groups`" = 'br-user' ]; then echo y; else echo n; fi)
 date := $(shell date +%Y%m%d.%H%M --utc)
 
-real_targets := \
+real_targets_outside_docker := \
 	.stamp_all \
+	.stamp_submodules \
+
+real_targets_inside_docker := \
 	.stamp_linux \
 	.stamp_modules_intree \
 	.stamp_modules_out_of_tree \
@@ -20,14 +24,16 @@ real_targets := \
 	.stamp_rootfs_extract \
 	.stamp_rootfs_final \
 	.stamp_rootfs_initial \
-	.stamp_submodules \
 
-phony_targets := \
+phony_targets_outside_docker := \
 	all \
 	clean \
 	clean-stamps \
 	distclean \
 	help \
+	submodules \
+
+phony_targets_inside_docker := \
 	linux \
 	modules_intree \
 	modules_out_of_tree \
@@ -36,11 +42,18 @@ phony_targets := \
 	rootfs_extract \
 	rootfs_final \
 	rootfs_initial \
-	submodules \
 	test \
 
-.PHONY: default $(phony_targets)
+.PHONY: default $(phony_targets_inside_docker) $(phony_targets_outside_docker)
 default: .stamp_all
+
+ifeq ($(check_inside_docker),n) ########################################
+
+$(real_targets_inside_docker) $(phony_targets_inside_docker): .stamp_submodules
+	@echo "====== $@ ======"
+	@utils/docker-run $(MAKE) $@
+
+else # ($(check_inside_docker),n) ########################################
 
 linux: .stamp_linux
 	@echo "=== $@ ==="
@@ -126,6 +139,8 @@ rootfs_final: .stamp_rootfs_final
 test: .stamp_linux .stamp_rootfs_final
 	@echo "=== $@ ==="
 	@TMPDIR=$(shell mktemp -d) $(IMAGES_DIR)/vmlinux mem=32M initrd=$(IMAGES_DIR)/rootfs_final.cpio noreboot
+
+endif # ($(check_inside_docker),n) ########################################
 
 all: .stamp_all
 	@echo "=== $@ ==="
