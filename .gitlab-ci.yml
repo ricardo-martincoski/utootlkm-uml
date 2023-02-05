@@ -1,1 +1,77 @@
 image: $CI_REGISTRY/ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml:20230205.1817
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
+default:
+  before_script:
+    # GitLab CI already takes care os submodules
+    # avoid https://gitlab.com/gitlab-org/gitlab-runner/-/issues/29022
+    - touch .stamp_submodules
+    # improve troubleshooting for passing artifacts from one job to another
+    - for dir in
+        .
+        download
+        output/build
+        output/images
+        ; do if [ -d $dir ]; then echo $dir ; ls -la $dir ; fi; done
+
+cache:
+  key: single-cache
+  paths:
+    - download/
+  policy: pull-push
+
+linux:
+  script:
+    - make linux
+  artifacts:
+    when: always
+    expire_in: 4 hours
+    paths:
+      - .stamp_*
+      - output/build/linux/
+      - output/images/
+
+rootfs_initial:
+  script:
+    - make rootfs_initial
+  artifacts:
+    when: always
+    expire_in: 4 hours
+    paths:
+      - .stamp_*
+      - output/build/rootfs_initial/.config
+      - output/build/rootfs_initial/build/build-time.log
+      - output/build/rootfs_initial/build/packages-file-list.txt
+      - output/build/rootfs_initial/build/*/.config
+      - output/images/
+
+rootfs_final:
+  needs:
+    - job: linux
+      artifacts: true
+    - job: rootfs_initial
+      artifacts: true
+  script:
+    - make rootfs_final
+  artifacts:
+    when: always
+    expire_in: 4 hours
+    paths:
+      - .stamp_*
+      - output/build/*/.config
+      - output/images/
+
+test:
+  needs:
+    - job: rootfs_final
+      artifacts: true
+  script:
+    - make help
+  artifacts:
+    when: always
+    paths:
+      - .stamp_*
+      - output/build/*/.config
+      - output/images/
