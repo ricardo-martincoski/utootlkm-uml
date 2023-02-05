@@ -38,6 +38,10 @@ RUN apt-get install -y --no-install-recommends \
         fakeroot \
         && echo done installing rootfs_extract dependencies
 
+RUN apt-get install -y --no-install-recommends \
+        git \
+        && echo done installing GitLab CI dependencies
+
 RUN apt-get -y autoremove && \
     apt-get -y clean
 
