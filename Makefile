@@ -122,7 +122,7 @@ rootfs_final: .stamp_rootfs_final
 
 test: .stamp_linux .stamp_rootfs_final
 	@echo "=== $@ ==="
-	@$(IMAGES_DIR)/vmlinux mem=32M initrd=$(IMAGES_DIR)/rootfs_final.cpio noreboot
+	@TMPDIR=$(shell mktemp -d) $(IMAGES_DIR)/vmlinux mem=32M initrd=$(IMAGES_DIR)/rootfs_final.cpio noreboot
 
 all: .stamp_all
 	@echo "=== $@ ==="
