@@ -95,6 +95,7 @@ modules_out_of_tree: .stamp_modules_out_of_tree
 			&& rsync -vau $(driver)/ $(BUILD_DIR)/drivers/$(notdir $(driver))/ \
 			&& $(MAKE) ARCH=um -C $(BUILD_DIR)/modules M=$(BUILD_DIR)/drivers/$(notdir $(driver))/ \
 			&& $(MAKE) ARCH=um -C $(BUILD_DIR)/modules M=$(BUILD_DIR)/drivers/$(notdir $(driver))/ modules_install INSTALL_MOD_PATH=$(BUILD_DIR)/rootfs_final \
+			; \
 		)
 	@touch $@
 
