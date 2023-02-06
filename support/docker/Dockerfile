@@ -42,6 +42,11 @@ RUN apt-get install -y --no-install-recommends \
         git \
         && echo done installing GitLab CI dependencies
 
+RUN apt-get install -y --no-install-recommends \
+        python3 \
+        python3-pexpect \
+        && echo done installing unit tests dependencies
+
 RUN apt-get -y autoremove && \
     apt-get -y clean
 

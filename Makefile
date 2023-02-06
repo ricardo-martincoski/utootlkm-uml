@@ -6,6 +6,7 @@ DOWNLOAD_DIR := $(BASE_DIR)/download
 OUTPUT_DIR := $(BASE_DIR)/output
 BUILD_DIR := $(OUTPUT_DIR)/build
 IMAGES_DIR := $(OUTPUT_DIR)/images
+TESTS_DIR := $(OUTPUT_DIR)/tests
 DOCKER_IMAGE := ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml
 
 check_inside_docker := $(shell if [ "`groups`" = 'br-user' ]; then echo y; else echo n; fi)
@@ -43,6 +44,7 @@ phony_targets_inside_docker := \
 	rootfs_final \
 	rootfs_initial \
 	test \
+	tests \
 
 .PHONY: default $(phony_targets_inside_docker) $(phony_targets_outside_docker)
 default: .stamp_all
@@ -137,6 +139,12 @@ rootfs_final: .stamp_rootfs_final
 	@fakeroot bash -c 'cd $(BUILD_DIR)/rootfs_final && find . | cpio --create --format=newc' > $(IMAGES_DIR)/rootfs_final.cpio
 	@touch $@
 
+tests: .stamp_linux .stamp_rootfs_final
+	@echo "=== $@ ==="
+	@rm -rf $(TESTS_DIR)
+	@mkdir -p $(TESTS_DIR)
+	@$(BASE_DIR)/tests/test.py
+
 test: .stamp_linux .stamp_rootfs_final
 	@echo "=== $@ ==="
 	@TMPDIR=$(shell mktemp -d) $(IMAGES_DIR)/vmlinux mem=32M initrd=$(IMAGES_DIR)/rootfs_final.cpio noreboot
@@ -145,7 +153,7 @@ endif # ($(check_inside_docker),n) ########################################
 
 all: .stamp_all
 	@echo "=== $@ ==="
-.stamp_all: test
+.stamp_all: tests
 	@echo "=== $@ ==="
 	@touch $@
 
@@ -188,7 +196,9 @@ help:
 	@echo "main Linux git tree)."
 	@echo
 	@echo "Usage:"
-	@echo "  make - build UML and drivers and start the VM"
+	@echo "  make test - start the VM used to run unit tests (for manual testing)"
+	@echo "  make - build UML and drivers and run unit tests"
+	@echo "  make tests - run unit tests"
 	@echo "  make clean"
 	@echo "  make distclean - 'clean' + force submodule to be cloned"
 	@echo "  make docker-image - generate a new docker image to be uploaded"

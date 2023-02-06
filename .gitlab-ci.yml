@@ -1,4 +1,4 @@
-image: $CI_REGISTRY/ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml:20230205.1817
+image: $CI_REGISTRY/ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml:20230206.0101
 
 variables:
   GIT_SUBMODULE_STRATEGY: recursive
@@ -63,15 +63,16 @@ rootfs_final:
       - output/build/*/.config
       - output/images/
 
-test:
+tests:
   needs:
     - job: rootfs_final
       artifacts: true
   script:
-    - make help
+    - make tests
   artifacts:
     when: always
     paths:
       - .stamp_*
       - output/build/*/.config
       - output/images/
+      - output/tests/
