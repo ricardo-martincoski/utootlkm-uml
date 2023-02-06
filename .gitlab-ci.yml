@@ -76,3 +76,17 @@ tests:
       - output/build/*/.config
       - output/images/
       - output/tests/
+
+retest:
+  needs:
+    - job: tests
+      artifacts: true
+  script:
+    - make retest
+  artifacts:
+    when: always
+    paths:
+      - .stamp_*
+      - output/build/*/.config
+      - output/images/
+      - output/tests/

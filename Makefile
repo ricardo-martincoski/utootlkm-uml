@@ -32,6 +32,7 @@ phony_targets_outside_docker := \
 	clean-stamps \
 	distclean \
 	help \
+	retest \
 	submodules \
 
 phony_targets_inside_docker := \
@@ -151,6 +152,11 @@ test: .stamp_linux .stamp_rootfs_final
 
 endif # ($(check_inside_docker),n) ########################################
 
+retest:
+	@echo "=== $@ ==="
+	@rm -f .stamp_modules_out_of_tree .stamp_rootfs_edit .stamp_rootfs_final
+	@$(MAKE) tests
+
 all: .stamp_all
 	@echo "=== $@ ==="
 .stamp_all: tests
@@ -199,6 +205,7 @@ help:
 	@echo "  make test - start the VM used to run unit tests (for manual testing)"
 	@echo "  make - build UML and drivers and run unit tests"
 	@echo "  make tests - run unit tests"
+	@echo "  make retest - recompile only the drivers and run unit tests"
 	@echo "  make clean"
 	@echo "  make distclean - 'clean' + force submodule to be cloned"
 	@echo "  make docker-image - generate a new docker image to be uploaded"
