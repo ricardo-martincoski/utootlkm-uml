@@ -1,12 +1,18 @@
 BASE_DIR := $(shell readlink -f .)
-BUILDROOT_DIR := $(BASE_DIR)/buildroot
-LINUX_DIR := $(BASE_DIR)/linux
-DRIVERS_DIR := $(BASE_DIR)/drivers
-DOWNLOAD_DIR := $(BASE_DIR)/download
+SRC_BUILDROOT_DIR := $(BASE_DIR)/buildroot
+SRC_CONFIGS_DIR := $(BASE_DIR)/configs
+SRC_DRIVERS_DIR := $(BASE_DIR)/drivers
+SRC_LINUX_DIR := $(BASE_DIR)/linux
 OUTPUT_DIR := $(BASE_DIR)/output
-BUILD_DIR := $(OUTPUT_DIR)/build
-IMAGES_DIR := $(OUTPUT_DIR)/images
-TESTS_DIR := $(OUTPUT_DIR)/tests
+BUILD_BASE_DIR := $(OUTPUT_DIR)/build
+BUILD_IMAGES_DIR := $(OUTPUT_DIR)/images
+BUILD_TESTS_DIR := $(OUTPUT_DIR)/tests
+BUILD_DRIVERS_DIR := $(BUILD_BASE_DIR)/drivers
+BUILD_LINUX_DIR := $(BUILD_BASE_DIR)/linux
+BUILD_MODULES_DIR := $(BUILD_BASE_DIR)/modules
+BUILD_ROOTFS_FINAL_DIR := $(BUILD_BASE_DIR)/rootfs_final
+BUILD_ROOTFS_INITIAL_DIR := $(BUILD_BASE_DIR)/rootfs_initial
+CACHE_DOWNLOAD_DIR := $(BASE_DIR)/download
 DOCKER_IMAGE := ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml
 
 check_inside_docker := $(shell if [ "`groups`" = 'br-user' ]; then echo y; else echo n; fi)
@@ -61,42 +67,42 @@ linux: .stamp_linux
 	@echo "=== $@ ==="
 .stamp_linux: .stamp_submodules
 	@echo "=== $@ ==="
-	@rm -rf $(BUILD_DIR)/linux
-	@$(MAKE) ARCH=um O=$(BUILD_DIR)/linux -C $(LINUX_DIR) defconfig
-	@install -D $(BASE_DIR)/configs/linux.defconfig $(BUILD_DIR)/linux/.config
-	@$(MAKE) ARCH=um -C $(BUILD_DIR)/linux olddefconfig
-	@$(MAKE) ARCH=um -C $(BUILD_DIR)/linux
-	@install -D $(BUILD_DIR)/linux/vmlinux $(IMAGES_DIR)/vmlinux
+	@rm -rf $(BUILD_LINUX_DIR)
+	@$(MAKE) ARCH=um O=$(BUILD_LINUX_DIR) -C $(SRC_LINUX_DIR) defconfig
+	@install -D $(SRC_CONFIGS_DIR)/linux.defconfig $(BUILD_LINUX_DIR)/.config
+	@$(MAKE) ARCH=um -C $(BUILD_LINUX_DIR) olddefconfig
+	@$(MAKE) ARCH=um -C $(BUILD_LINUX_DIR)
+	@install -D $(BUILD_LINUX_DIR)/vmlinux $(BUILD_IMAGES_DIR)/vmlinux
 	@touch $@
 
 modules_intree: .stamp_modules_intree
 	@echo "=== $@ ==="
 .stamp_modules_intree: .stamp_linux .stamp_rootfs_initial_extract
 	@echo "=== $@ ==="
-	@$(MAKE) ARCH=um -C $(BUILD_DIR)/linux modules_install INSTALL_MOD_PATH=$(BUILD_DIR)/rootfs_final
+	@$(MAKE) ARCH=um -C $(BUILD_LINUX_DIR) modules_install INSTALL_MOD_PATH=$(BUILD_ROOTFS_FINAL_DIR)
 	@touch $@
 
 modules_prepare: .stamp_modules_prepare
 	@echo "=== $@ ==="
 .stamp_modules_prepare:
 	@echo "=== $@ ==="
-	@$(MAKE) ARCH=um O=$(BUILD_DIR)/modules -C $(LINUX_DIR) defconfig
-	@install -D $(BASE_DIR)/configs/linux.defconfig $(BUILD_DIR)/modules/.config
-	@$(MAKE) ARCH=um -C $(BUILD_DIR)/modules olddefconfig
-	@$(MAKE) ARCH=um -C $(BUILD_DIR)/modules modules_prepare
+	@$(MAKE) ARCH=um O=$(BUILD_MODULES_DIR) -C $(SRC_LINUX_DIR) defconfig
+	@install -D $(SRC_CONFIGS_DIR)/linux.defconfig $(BUILD_MODULES_DIR)/.config
+	@$(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) olddefconfig
+	@$(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) modules_prepare
 	@touch $@
 
 modules_out_of_tree: .stamp_modules_out_of_tree
 	@echo "=== $@ ==="
 .stamp_modules_out_of_tree: .stamp_modules_prepare
 	@echo "=== $@ ==="
-	@rm -rf $(BUILD_DIR)/drivers
-	@mkdir -p $(BUILD_DIR)/drivers
-	@$(foreach driver, $(wildcard $(DRIVERS_DIR)/*), \
+	@rm -rf $(BUILD_DRIVERS_DIR)
+	@mkdir -p $(BUILD_DRIVERS_DIR)
+	@$(foreach driver, $(wildcard $(SRC_DRIVERS_DIR)/*), \
 		echo "--- $@ $(notdir $(driver)) ---" \
-			&& rsync -vau $(driver)/ $(BUILD_DIR)/drivers/$(notdir $(driver))/ \
-			&& $(MAKE) ARCH=um -C $(BUILD_DIR)/modules M=$(BUILD_DIR)/drivers/$(notdir $(driver))/ \
-			&& $(MAKE) ARCH=um -C $(BUILD_DIR)/modules M=$(BUILD_DIR)/drivers/$(notdir $(driver))/ modules_install INSTALL_MOD_PATH=$(BUILD_DIR)/rootfs_final \
+			&& rsync -vau $(driver)/ $(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ \
+			&& $(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) M=$(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ \
+			&& $(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) M=$(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ modules_install INSTALL_MOD_PATH=$(BUILD_ROOTFS_FINAL_DIR) \
 			; \
 		)
 	@touch $@
@@ -105,23 +111,23 @@ rootfs_initial: .stamp_rootfs_initial_generate
 	@echo "=== $@ ==="
 .stamp_rootfs_initial_generate: .stamp_submodules
 	@echo "=== $@ ==="
-	@rm -rf $(BUILD_DIR)/rootfs_initial
-	@$(MAKE) O=$(BUILD_DIR)/rootfs_initial -C $(BUILDROOT_DIR) defconfig
-	@install -D $(BASE_DIR)/configs/rootfs_defconfig $(BUILD_DIR)/rootfs_initial/.config
-	@$(MAKE) -C $(BUILD_DIR)/rootfs_initial olddefconfig
-	@$(MAKE) -C $(BUILD_DIR)/rootfs_initial source
-	@$(MAKE) -C $(BUILD_DIR)/rootfs_initial
-	@install -D $(BUILD_DIR)/rootfs_initial/images/rootfs.cpio $(IMAGES_DIR)/rootfs_initial.cpio
+	@rm -rf $(BUILD_ROOTFS_INITIAL_DIR)
+	@$(MAKE) O=$(BUILD_ROOTFS_INITIAL_DIR) -C $(SRC_BUILDROOT_DIR) defconfig
+	@install -D $(SRC_CONFIGS_DIR)/rootfs_defconfig $(BUILD_ROOTFS_INITIAL_DIR)/.config
+	@$(MAKE) -C $(BUILD_ROOTFS_INITIAL_DIR) olddefconfig
+	@$(MAKE) -C $(BUILD_ROOTFS_INITIAL_DIR) source
+	@$(MAKE) -C $(BUILD_ROOTFS_INITIAL_DIR)
+	@install -D $(BUILD_ROOTFS_INITIAL_DIR)/images/rootfs.cpio $(BUILD_IMAGES_DIR)/rootfs_initial.cpio
 	@touch $@
 
 .stamp_rootfs_initial_extract: .stamp_rootfs_initial_generate
 	@echo "=== $@ ==="
-	@rm -rf $(BUILD_DIR)/rootfs_final
-	@mkdir -p $(BUILD_DIR)/rootfs_final
-	@fakeroot -- cpio --extract --directory=$(BUILD_DIR)/rootfs_final --make-directories --file=$(IMAGES_DIR)/rootfs_initial.cpio
-	@sed '/mknod.*console/d' -i $(BUILD_DIR)/rootfs_final/init
-	@sed '/#!\/bin\/sh/amknod /dev/console c 5 1' -i $(BUILD_DIR)/rootfs_final/init
-	@rm -f $(BUILD_DIR)/rootfs_final/dev/console
+	@rm -rf $(BUILD_ROOTFS_FINAL_DIR)
+	@mkdir -p $(BUILD_ROOTFS_FINAL_DIR)
+	@fakeroot -- cpio --extract --directory=$(BUILD_ROOTFS_FINAL_DIR) --make-directories --file=$(BUILD_IMAGES_DIR)/rootfs_initial.cpio
+	@sed '/mknod.*console/d' -i $(BUILD_ROOTFS_FINAL_DIR)/init
+	@sed '/#!\/bin\/sh/amknod /dev/console c 5 1' -i $(BUILD_ROOTFS_FINAL_DIR)/init
+	@rm -f $(BUILD_ROOTFS_FINAL_DIR)/dev/console
 	@touch $@
 
 rootfs_edit: .stamp_rootfs_edit
@@ -134,18 +140,18 @@ rootfs_final: .stamp_rootfs_final_generate
 	@echo "=== $@ ==="
 .stamp_rootfs_final_generate: .stamp_rootfs_edit
 	@echo "=== $@ ==="
-	@fakeroot bash -c 'cd $(BUILD_DIR)/rootfs_final && find . | cpio --create --format=newc' > $(IMAGES_DIR)/rootfs_final.cpio
+	@fakeroot bash -c 'cd $(BUILD_ROOTFS_FINAL_DIR) && find . | cpio --create --format=newc' > $(BUILD_IMAGES_DIR)/rootfs_final.cpio
 	@touch $@
 
 tests: .stamp_linux .stamp_rootfs_final_generate
 	@echo "=== $@ ==="
-	@rm -rf $(TESTS_DIR)
-	@mkdir -p $(TESTS_DIR)
+	@rm -rf $(BUILD_TESTS_DIR)
+	@mkdir -p $(BUILD_TESTS_DIR)
 	@$(BASE_DIR)/tests/test.py
 
 test: .stamp_linux .stamp_rootfs_final_generate
 	@echo "=== $@ ==="
-	@TMPDIR=$(shell mktemp -d) $(IMAGES_DIR)/vmlinux mem=32M initrd=$(IMAGES_DIR)/rootfs_final.cpio noreboot
+	@TMPDIR=$(shell mktemp -d) $(BUILD_IMAGES_DIR)/vmlinux mem=32M initrd=$(BUILD_IMAGES_DIR)/rootfs_final.cpio noreboot
 
 endif # ($(check_inside_docker),n) ########################################
 
@@ -179,9 +185,9 @@ clean: clean-stamps
 
 distclean: clean
 	@echo "=== $@ ==="
-	@rm -rf $(BUILDROOT_DIR)
-	@rm -rf $(DOWNLOAD_DIR)
-	@rm -rf $(LINUX_DIR)
+	@rm -rf $(SRC_BUILDROOT_DIR)
+	@rm -rf $(SRC_LINUX_DIR)
+	@rm -rf $(CACHE_DOWNLOAD_DIR)
 
 docker-image:
 	@echo "=== $@ ==="
