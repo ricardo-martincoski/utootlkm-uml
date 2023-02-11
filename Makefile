@@ -28,6 +28,12 @@ else
 Q :=
 endif
 
+# used with foreach and multiple commands
+define newline
+
+
+endef
+
 check_inside_docker := $(shell if [ "`groups`" = 'br-user' ]; then echo y; else echo n; fi)
 date := $(shell date +%Y%m%d.%H%M --utc)
 
@@ -112,12 +118,11 @@ modules-out-of-tree: .stamp_modules_out_of_tree
 	$(Q)echo "=== $@ ==="
 	$(Q)rm -rf $(BUILD_DRIVERS_DIR)
 	$(Q)mkdir -p $(BUILD_DRIVERS_DIR)
-	$(Q)$(foreach driver, $(wildcard $(SRC_DRIVERS_DIR)/*), \
-		echo "--- $@ $(notdir $(driver)) ---" \
-			&& rsync -vau $(driver)/ $(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ \
-			&& $(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) M=$(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ \
-			&& $(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) M=$(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ modules_install INSTALL_MOD_PATH=$(BUILD_ROOTFS_FINAL_DIR) \
-			; \
+	$(Q)$(foreach driver, $(wildcard $(SRC_DRIVERS_DIR)/*),\
+		echo "--- $@ $(notdir $(driver)) ---" $(newline)\
+		rsync -vau $(driver)/ $(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ $(newline) \
+		$(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) M=$(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ $(newline) \
+		$(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) M=$(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ modules_install INSTALL_MOD_PATH=$(BUILD_ROOTFS_FINAL_DIR) $(newline) \
 		)
 	$(Q)touch $@
 
