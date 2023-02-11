@@ -22,9 +22,9 @@ real_targets_inside_docker := \
 	.stamp_modules_out_of_tree \
 	.stamp_modules_prepare \
 	.stamp_rootfs_edit \
-	.stamp_rootfs_extract \
-	.stamp_rootfs_final \
-	.stamp_rootfs_initial \
+	.stamp_rootfs_final_generate \
+	.stamp_rootfs_initial_extract \
+	.stamp_rootfs_initial_generate \
 
 phony_targets_outside_docker := \
 	all \
@@ -41,7 +41,6 @@ phony_targets_inside_docker := \
 	modules_out_of_tree \
 	modules_prepare \
 	rootfs_edit \
-	rootfs_extract \
 	rootfs_final \
 	rootfs_initial \
 	test \
@@ -72,7 +71,7 @@ linux: .stamp_linux
 
 modules_intree: .stamp_modules_intree
 	@echo "=== $@ ==="
-.stamp_modules_intree: .stamp_linux .stamp_rootfs_extract
+.stamp_modules_intree: .stamp_linux .stamp_rootfs_initial_extract
 	@echo "=== $@ ==="
 	@$(MAKE) ARCH=um -C $(BUILD_DIR)/linux modules_install INSTALL_MOD_PATH=$(BUILD_DIR)/rootfs_final
 	@touch $@
@@ -102,9 +101,9 @@ modules_out_of_tree: .stamp_modules_out_of_tree
 		)
 	@touch $@
 
-rootfs_initial: .stamp_rootfs_initial
+rootfs_initial: .stamp_rootfs_initial_generate
 	@echo "=== $@ ==="
-.stamp_rootfs_initial: .stamp_submodules
+.stamp_rootfs_initial_generate: .stamp_submodules
 	@echo "=== $@ ==="
 	@rm -rf $(BUILD_DIR)/rootfs_initial
 	@$(MAKE) O=$(BUILD_DIR)/rootfs_initial -C $(BUILDROOT_DIR) defconfig
@@ -115,9 +114,7 @@ rootfs_initial: .stamp_rootfs_initial
 	@install -D $(BUILD_DIR)/rootfs_initial/images/rootfs.cpio $(IMAGES_DIR)/rootfs_initial.cpio
 	@touch $@
 
-rootfs_extract: .stamp_rootfs_extract
-	@echo "=== $@ ==="
-.stamp_rootfs_extract: .stamp_rootfs_initial
+.stamp_rootfs_initial_extract: .stamp_rootfs_initial_generate
 	@echo "=== $@ ==="
 	@rm -rf $(BUILD_DIR)/rootfs_final
 	@mkdir -p $(BUILD_DIR)/rootfs_final
@@ -133,20 +130,20 @@ rootfs_edit: .stamp_rootfs_edit
 	@echo "=== $@ ==="
 	@touch $@
 
-rootfs_final: .stamp_rootfs_final
+rootfs_final: .stamp_rootfs_final_generate
 	@echo "=== $@ ==="
-.stamp_rootfs_final: .stamp_rootfs_edit
+.stamp_rootfs_final_generate: .stamp_rootfs_edit
 	@echo "=== $@ ==="
 	@fakeroot bash -c 'cd $(BUILD_DIR)/rootfs_final && find . | cpio --create --format=newc' > $(IMAGES_DIR)/rootfs_final.cpio
 	@touch $@
 
-tests: .stamp_linux .stamp_rootfs_final
+tests: .stamp_linux .stamp_rootfs_final_generate
 	@echo "=== $@ ==="
 	@rm -rf $(TESTS_DIR)
 	@mkdir -p $(TESTS_DIR)
 	@$(BASE_DIR)/tests/test.py
 
-test: .stamp_linux .stamp_rootfs_final
+test: .stamp_linux .stamp_rootfs_final_generate
 	@echo "=== $@ ==="
 	@TMPDIR=$(shell mktemp -d) $(IMAGES_DIR)/vmlinux mem=32M initrd=$(IMAGES_DIR)/rootfs_final.cpio noreboot
 
@@ -154,7 +151,7 @@ endif # ($(check_inside_docker),n) ########################################
 
 retest:
 	@echo "=== $@ ==="
-	@rm -f .stamp_modules_out_of_tree .stamp_rootfs_edit .stamp_rootfs_final
+	@rm -f .stamp_modules_out_of_tree .stamp_rootfs_edit .stamp_rootfs_final_generate
 	@$(MAKE) tests
 
 all: .stamp_all
