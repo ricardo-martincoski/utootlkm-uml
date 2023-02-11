@@ -32,9 +32,9 @@ linux:
       - output/build/linux/
       - output/images/
 
-modules_prepare:
+modules-prepare:
   script:
-    - make V=1 modules_prepare
+    - make V=1 modules-prepare
   artifacts:
     when: always
     expire_in: 4 hours
@@ -42,9 +42,9 @@ modules_prepare:
       - .stamp_*
       - output/build/modules/
 
-rootfs_initial:
+rootfs-initial:
   script:
-    - make V=1 rootfs_initial
+    - make V=1 rootfs-initial
   artifacts:
     when: always
     expire_in: 4 hours
@@ -56,14 +56,14 @@ rootfs_initial:
       - output/build/rootfs_initial/build/*/.config
       - output/images/
 
-rootfs_partial:
+rootfs-partial:
   needs:
     - job: linux
       artifacts: true
-    - job: rootfs_initial
+    - job: rootfs-initial
       artifacts: true
   script:
-    - make V=1 rootfs_partial
+    - make V=1 rootfs-partial
   artifacts:
     when: always
     expire_in: 4 hours
@@ -72,14 +72,14 @@ rootfs_partial:
       - output/build/*/.config
       - output/images/
 
-rootfs_final:
+rootfs-final:
   needs:
-    - job: modules_prepare
+    - job: modules-prepare
       artifacts: true
-    - job: rootfs_partial
+    - job: rootfs-partial
       artifacts: true
   script:
-    - make V=1 rootfs_final
+    - make V=1 rootfs-final
   artifacts:
     when: always
     expire_in: 4 hours
@@ -88,14 +88,14 @@ rootfs_final:
       - output/build/*/.config
       - output/images/
 
-tests:
+run-all-tests:
   needs:
     - job: linux
       artifacts: true
-    - job: rootfs_final
+    - job: rootfs-final
       artifacts: true
   script:
-    - make V=1 tests
+    - make V=1 run-all-tests
   artifacts:
     when: always
     paths:
@@ -104,14 +104,14 @@ tests:
       - output/images/
       - output/tests/
 
-retest:
+rerun-all-tests:
   needs:
-    - job: modules_prepare
+    - job: modules-prepare
       artifacts: true
-    - job: tests
+    - job: run-all-tests
       artifacts: true
   script:
-    - make V=1 retest
+    - make V=1 rerun-all-tests
   artifacts:
     when: always
     paths:

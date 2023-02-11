@@ -52,19 +52,19 @@ phony_targets_outside_docker := \
 	clean-stamps \
 	distclean \
 	help \
-	retest \
+	rerun-all-tests \
 	submodules \
 
 phony_targets_inside_docker := \
 	linux \
-	modules_intree \
-	modules_out_of_tree \
-	modules_prepare \
-	rootfs_final \
-	rootfs_initial \
-	rootfs_partial \
-	test \
-	tests \
+	modules-intree \
+	modules-out-of-tree \
+	modules-prepare \
+	rootfs-final \
+	rootfs-initial \
+	rootfs-partial \
+	run-all-tests \
+	start-vm \
 
 .PHONY: default $(phony_targets_inside_docker) $(phony_targets_outside_docker)
 default: .stamp_all
@@ -89,14 +89,14 @@ linux: .stamp_linux
 	$(Q)install -D $(BUILD_LINUX_DIR)/vmlinux $(ARTIFACT_LINUX)
 	$(Q)touch $@
 
-modules_intree: .stamp_modules_intree
+modules-intree: .stamp_modules_intree
 	$(Q)echo "=== $@ ==="
 .stamp_modules_intree: .stamp_linux .stamp_rootfs_initial_extract
 	$(Q)echo "=== $@ ==="
 	$(Q)$(MAKE) ARCH=um -C $(BUILD_LINUX_DIR) modules_install INSTALL_MOD_PATH=$(BUILD_ROOTFS_PARTIAL_DIR)
 	$(Q)touch $@
 
-modules_prepare: .stamp_modules_prepare
+modules-prepare: .stamp_modules_prepare
 	$(Q)echo "=== $@ ==="
 .stamp_modules_prepare:
 	$(Q)echo "=== $@ ==="
@@ -106,7 +106,7 @@ modules_prepare: .stamp_modules_prepare
 	$(Q)$(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) modules_prepare
 	$(Q)touch $@
 
-modules_out_of_tree: .stamp_modules_out_of_tree
+modules-out-of-tree: .stamp_modules_out_of_tree
 	$(Q)echo "=== $@ ==="
 .stamp_modules_out_of_tree: .stamp_modules_prepare .stamp_rootfs_partial_extract
 	$(Q)echo "=== $@ ==="
@@ -121,7 +121,7 @@ modules_out_of_tree: .stamp_modules_out_of_tree
 		)
 	$(Q)touch $@
 
-rootfs_initial: .stamp_rootfs_initial_generate
+rootfs-initial: .stamp_rootfs_initial_generate
 	$(Q)echo "=== $@ ==="
 .stamp_rootfs_initial_generate: .stamp_submodules
 	$(Q)echo "=== $@ ==="
@@ -144,7 +144,7 @@ rootfs_initial: .stamp_rootfs_initial_generate
 	$(Q)rm -f $(BUILD_ROOTFS_PARTIAL_DIR)/dev/console
 	$(Q)touch $@
 
-rootfs_partial: .stamp_rootfs_partial_generate
+rootfs-partial: .stamp_rootfs_partial_generate
 	$(Q)echo "=== $@ ==="
 .stamp_rootfs_partial_generate: .stamp_modules_intree
 	$(Q)echo "=== $@ ==="
@@ -158,33 +158,33 @@ rootfs_partial: .stamp_rootfs_partial_generate
 	$(Q)fakeroot -- cpio --extract --directory=$(BUILD_ROOTFS_FINAL_DIR) --make-directories --file=$(ARTIFACT_ROOTFS_PARTIAL)
 	$(Q)touch $@
 
-rootfs_final: .stamp_rootfs_final_generate
+rootfs-final: .stamp_rootfs_final_generate
 	$(Q)echo "=== $@ ==="
 .stamp_rootfs_final_generate: .stamp_modules_out_of_tree
 	$(Q)echo "=== $@ ==="
 	$(Q)fakeroot bash -c 'cd $(BUILD_ROOTFS_FINAL_DIR) && find . | cpio --create --format=newc' > $(ARTIFACT_ROOTFS_FINAL)
 	$(Q)touch $@
 
-tests: .stamp_linux .stamp_rootfs_final_generate
+run-all-tests: .stamp_linux .stamp_rootfs_final_generate
 	$(Q)echo "=== $@ ==="
 	$(Q)rm -rf $(BUILD_TESTS_DIR)
 	$(Q)mkdir -p $(BUILD_TESTS_DIR)
 	$(Q)$(BASE_DIR)/tests/test.py
 
-test: .stamp_linux .stamp_rootfs_final_generate
+start-vm: .stamp_linux .stamp_rootfs_final_generate
 	$(Q)echo "=== $@ ==="
 	$(Q)TMPDIR=$(shell mktemp -d) $(ARTIFACT_LINUX) mem=32M initrd=$(ARTIFACT_ROOTFS_FINAL) noreboot
 
 endif # ($(check_inside_docker),n) ########################################
 
-retest:
+rerun-all-tests:
 	$(Q)echo "=== $@ ==="
 	$(Q)rm -f .stamp_modules_out_of_tree .stamp_rootfs_final_generate
-	$(Q)$(MAKE) tests
+	$(Q)$(MAKE) run-all-tests
 
 all: .stamp_all
 	$(Q)echo "=== $@ ==="
-.stamp_all: tests
+.stamp_all: run-all-tests
 	$(Q)echo "=== $@ ==="
 	$(Q)touch $@
 
@@ -227,22 +227,22 @@ help:
 	$(Q)echo "main Linux git tree)."
 	$(Q)echo
 	$(Q)echo "Usage:"
-	$(Q)echo "  make test - start the VM used to run unit tests (for manual testing)"
+	$(Q)echo "  make start-vm - start the VM used to run unit tests (for manual testing)"
 	$(Q)echo "  make - build UML and drivers and run unit tests"
-	$(Q)echo "  make tests - run unit tests"
-	$(Q)echo "  make retest - recompile only the drivers and run unit tests"
+	$(Q)echo "  make run-all-tests - run unit tests"
+	$(Q)echo "  make rerun-all-tests - recompile only the drivers and run unit tests"
 	$(Q)echo "  make clean"
 	$(Q)echo "  make distclean - 'clean' + force submodule to be cloned"
 	$(Q)echo "  make docker-image - generate a new docker image to be uploaded"
 	$(Q)echo "  make V=1 <target> - calls the target enabling verbose output"
 	$(Q)echo ""
 	$(Q)echo "Dependencies:"
-	$(Q)echo "             rootfs_initial    modules_intree"
+	$(Q)echo "             rootfs-initial    modules-intree"
 	$(Q)echo "                         |      |          ^"
 	$(Q)echo "                         |      |          |"
 	$(Q)echo "                         v      v          |"
-	$(Q)echo " modules_prepare        rootfs_partial    linux"
+	$(Q)echo " modules-prepare        rootfs-partial    linux"
 	$(Q)echo "  |                      |                 |"
 	$(Q)echo "  v                      v                 v"
-	$(Q)echo " modules_out_of_tree -> rootfs_final ---> tests"
+	$(Q)echo " modules-out-of-tree -> rootfs-final ---> run-all-tests"
 	$(Q)echo ""
