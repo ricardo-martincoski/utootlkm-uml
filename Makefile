@@ -250,4 +250,7 @@ help:
 	$(Q)echo "  |                      |                 |"
 	$(Q)echo "  v                      v                 v"
 	$(Q)echo " modules-out-of-tree -> rootfs-final ---> run-all-tests"
+	$(Q)echo " ^^                     ^^                ^^"
+	$(Q)echo " ||                     ||                ||"
+	$(Q)echo " ++=====================++================++== rerun-all-tests"
 	$(Q)echo ""
