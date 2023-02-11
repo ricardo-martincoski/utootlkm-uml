@@ -5,9 +5,8 @@ variables:
 
 default:
   before_script:
-    # GitLab CI already takes care os submodules
     # avoid https://gitlab.com/gitlab-org/gitlab-runner/-/issues/29022
-    - touch .stamp_submodules
+    - git config --global --add safe.directory ${CI_PROJECT_DIR}
     # improve troubleshooting for passing artifacts from one job to another
     - for dir in
         .
