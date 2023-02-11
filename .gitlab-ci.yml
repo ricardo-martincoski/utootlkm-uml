@@ -46,11 +46,25 @@ rootfs_initial:
       - output/build/rootfs_initial/build/*/.config
       - output/images/
 
-rootfs_final:
+rootfs_partial:
   needs:
     - job: linux
       artifacts: true
     - job: rootfs_initial
+      artifacts: true
+  script:
+    - make V=1 rootfs_partial
+  artifacts:
+    when: always
+    expire_in: 4 hours
+    paths:
+      - .stamp_*
+      - output/build/*/.config
+      - output/images/
+
+rootfs_final:
+  needs:
+    - job: rootfs_partial
       artifacts: true
   script:
     - make V=1 rootfs_final
@@ -64,6 +78,8 @@ rootfs_final:
 
 tests:
   needs:
+    - job: linux
+      artifacts: true
     - job: rootfs_final
       artifacts: true
   script:

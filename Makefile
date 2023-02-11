@@ -12,11 +12,13 @@ BUILD_LINUX_DIR := $(BUILD_BASE_DIR)/linux
 BUILD_MODULES_DIR := $(BUILD_BASE_DIR)/modules
 BUILD_ROOTFS_FINAL_DIR := $(BUILD_BASE_DIR)/rootfs_final
 BUILD_ROOTFS_INITIAL_DIR := $(BUILD_BASE_DIR)/rootfs_initial
+BUILD_ROOTFS_PARTIAL_DIR := $(BUILD_BASE_DIR)/rootfs_partial
 CACHE_DOWNLOAD_DIR := $(BASE_DIR)/download
 DOCKER_IMAGE := ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml
 ARTIFACT_LINUX := $(BUILD_IMAGES_DIR)/vmlinux
 ARTIFACT_ROOTFS_FINAL := $(BUILD_IMAGES_DIR)/rootfs_final.cpio
 ARTIFACT_ROOTFS_INITIAL := $(BUILD_IMAGES_DIR)/rootfs_initial.cpio
+ARTIFACT_ROOTFS_PARTIAL := $(BUILD_IMAGES_DIR)/rootfs_partial.cpio
 
 # make V=1 will enable verbose mode
 V ?= 0
@@ -38,10 +40,11 @@ real_targets_inside_docker := \
 	.stamp_modules_intree \
 	.stamp_modules_out_of_tree \
 	.stamp_modules_prepare \
-	.stamp_rootfs_edit \
 	.stamp_rootfs_final_generate \
 	.stamp_rootfs_initial_extract \
 	.stamp_rootfs_initial_generate \
+	.stamp_rootfs_partial_extract \
+	.stamp_rootfs_partial_generate \
 
 phony_targets_outside_docker := \
 	all \
@@ -57,9 +60,9 @@ phony_targets_inside_docker := \
 	modules_intree \
 	modules_out_of_tree \
 	modules_prepare \
-	rootfs_edit \
 	rootfs_final \
 	rootfs_initial \
+	rootfs_partial \
 	test \
 	tests \
 
@@ -90,7 +93,7 @@ modules_intree: .stamp_modules_intree
 	$(Q)echo "=== $@ ==="
 .stamp_modules_intree: .stamp_linux .stamp_rootfs_initial_extract
 	$(Q)echo "=== $@ ==="
-	$(Q)$(MAKE) ARCH=um -C $(BUILD_LINUX_DIR) modules_install INSTALL_MOD_PATH=$(BUILD_ROOTFS_FINAL_DIR)
+	$(Q)$(MAKE) ARCH=um -C $(BUILD_LINUX_DIR) modules_install INSTALL_MOD_PATH=$(BUILD_ROOTFS_PARTIAL_DIR)
 	$(Q)touch $@
 
 modules_prepare: .stamp_modules_prepare
@@ -105,7 +108,7 @@ modules_prepare: .stamp_modules_prepare
 
 modules_out_of_tree: .stamp_modules_out_of_tree
 	$(Q)echo "=== $@ ==="
-.stamp_modules_out_of_tree: .stamp_modules_prepare
+.stamp_modules_out_of_tree: .stamp_modules_prepare .stamp_rootfs_partial_extract
 	$(Q)echo "=== $@ ==="
 	$(Q)rm -rf $(BUILD_DRIVERS_DIR)
 	$(Q)mkdir -p $(BUILD_DRIVERS_DIR)
@@ -133,23 +136,31 @@ rootfs_initial: .stamp_rootfs_initial_generate
 
 .stamp_rootfs_initial_extract: .stamp_rootfs_initial_generate
 	$(Q)echo "=== $@ ==="
-	$(Q)rm -rf $(BUILD_ROOTFS_FINAL_DIR)
-	$(Q)mkdir -p $(BUILD_ROOTFS_FINAL_DIR)
-	$(Q)fakeroot -- cpio --extract --directory=$(BUILD_ROOTFS_FINAL_DIR) --make-directories --file=$(ARTIFACT_ROOTFS_INITIAL)
-	$(Q)sed '/mknod.*console/d' -i $(BUILD_ROOTFS_FINAL_DIR)/init
-	$(Q)sed '/#!\/bin\/sh/amknod /dev/console c 5 1' -i $(BUILD_ROOTFS_FINAL_DIR)/init
-	$(Q)rm -f $(BUILD_ROOTFS_FINAL_DIR)/dev/console
+	$(Q)rm -rf $(BUILD_ROOTFS_PARTIAL_DIR)
+	$(Q)mkdir -p $(BUILD_ROOTFS_PARTIAL_DIR)
+	$(Q)fakeroot -- cpio --extract --directory=$(BUILD_ROOTFS_PARTIAL_DIR) --make-directories --file=$(ARTIFACT_ROOTFS_INITIAL)
+	$(Q)sed '/mknod.*console/d' -i $(BUILD_ROOTFS_PARTIAL_DIR)/init
+	$(Q)sed '/#!\/bin\/sh/amknod /dev/console c 5 1' -i $(BUILD_ROOTFS_PARTIAL_DIR)/init
+	$(Q)rm -f $(BUILD_ROOTFS_PARTIAL_DIR)/dev/console
 	$(Q)touch $@
 
-rootfs_edit: .stamp_rootfs_edit
+rootfs_partial: .stamp_rootfs_partial_generate
 	$(Q)echo "=== $@ ==="
-.stamp_rootfs_edit: .stamp_modules_intree .stamp_modules_out_of_tree
+.stamp_rootfs_partial_generate: .stamp_modules_intree
 	$(Q)echo "=== $@ ==="
+	$(Q)fakeroot bash -c 'cd $(BUILD_ROOTFS_PARTIAL_DIR) && find . | cpio --create --format=newc' > $(ARTIFACT_ROOTFS_PARTIAL)
+	$(Q)touch $@
+
+.stamp_rootfs_partial_extract: .stamp_rootfs_partial_generate
+	$(Q)echo "=== $@ ==="
+	$(Q)rm -rf $(BUILD_ROOTFS_FINAL_DIR)
+	$(Q)mkdir -p $(BUILD_ROOTFS_FINAL_DIR)
+	$(Q)fakeroot -- cpio --extract --directory=$(BUILD_ROOTFS_FINAL_DIR) --make-directories --file=$(ARTIFACT_ROOTFS_PARTIAL)
 	$(Q)touch $@
 
 rootfs_final: .stamp_rootfs_final_generate
 	$(Q)echo "=== $@ ==="
-.stamp_rootfs_final_generate: .stamp_rootfs_edit
+.stamp_rootfs_final_generate: .stamp_modules_out_of_tree
 	$(Q)echo "=== $@ ==="
 	$(Q)fakeroot bash -c 'cd $(BUILD_ROOTFS_FINAL_DIR) && find . | cpio --create --format=newc' > $(ARTIFACT_ROOTFS_FINAL)
 	$(Q)touch $@
@@ -168,7 +179,7 @@ endif # ($(check_inside_docker),n) ########################################
 
 retest:
 	$(Q)echo "=== $@ ==="
-	$(Q)rm -f .stamp_modules_out_of_tree .stamp_rootfs_edit .stamp_rootfs_final_generate
+	$(Q)rm -f .stamp_modules_out_of_tree .stamp_rootfs_final_generate
 	$(Q)$(MAKE) tests
 
 all: .stamp_all
@@ -224,3 +235,14 @@ help:
 	$(Q)echo "  make distclean - 'clean' + force submodule to be cloned"
 	$(Q)echo "  make docker-image - generate a new docker image to be uploaded"
 	$(Q)echo "  make V=1 <target> - calls the target enabling verbose output"
+	$(Q)echo ""
+	$(Q)echo "Dependencies:"
+	$(Q)echo "             rootfs_initial    modules_intree"
+	$(Q)echo "                         |      |          ^"
+	$(Q)echo "                         |      |          |"
+	$(Q)echo "                         v      v          |"
+	$(Q)echo " modules_prepare        rootfs_partial    linux"
+	$(Q)echo "  |                      |                 |"
+	$(Q)echo "  v                      v                 v"
+	$(Q)echo " modules_out_of_tree -> rootfs_final ---> tests"
+	$(Q)echo ""
