@@ -32,6 +32,16 @@ linux:
       - output/build/linux/
       - output/images/
 
+modules_prepare:
+  script:
+    - make V=1 modules_prepare
+  artifacts:
+    when: always
+    expire_in: 4 hours
+    paths:
+      - .stamp_*
+      - output/build/modules/
+
 rootfs_initial:
   script:
     - make V=1 rootfs_initial
@@ -64,6 +74,8 @@ rootfs_partial:
 
 rootfs_final:
   needs:
+    - job: modules_prepare
+      artifacts: true
     - job: rootfs_partial
       artifacts: true
   script:
@@ -94,6 +106,8 @@ tests:
 
 retest:
   needs:
+    - job: modules_prepare
+      artifacts: true
     - job: tests
       artifacts: true
   script:
