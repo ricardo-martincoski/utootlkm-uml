@@ -14,6 +14,9 @@ BUILD_ROOTFS_FINAL_DIR := $(BUILD_BASE_DIR)/rootfs_final
 BUILD_ROOTFS_INITIAL_DIR := $(BUILD_BASE_DIR)/rootfs_initial
 CACHE_DOWNLOAD_DIR := $(BASE_DIR)/download
 DOCKER_IMAGE := ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml
+ARTIFACT_LINUX := $(BUILD_IMAGES_DIR)/vmlinux
+ARTIFACT_ROOTFS_FINAL := $(BUILD_IMAGES_DIR)/rootfs_final.cpio
+ARTIFACT_ROOTFS_INITIAL := $(BUILD_IMAGES_DIR)/rootfs_initial.cpio
 
 check_inside_docker := $(shell if [ "`groups`" = 'br-user' ]; then echo y; else echo n; fi)
 date := $(shell date +%Y%m%d.%H%M --utc)
@@ -72,7 +75,7 @@ linux: .stamp_linux
 	@install -D $(SRC_CONFIGS_DIR)/linux.defconfig $(BUILD_LINUX_DIR)/.config
 	@$(MAKE) ARCH=um -C $(BUILD_LINUX_DIR) olddefconfig
 	@$(MAKE) ARCH=um -C $(BUILD_LINUX_DIR)
-	@install -D $(BUILD_LINUX_DIR)/vmlinux $(BUILD_IMAGES_DIR)/vmlinux
+	@install -D $(BUILD_LINUX_DIR)/vmlinux $(ARTIFACT_LINUX)
 	@touch $@
 
 modules_intree: .stamp_modules_intree
@@ -117,14 +120,14 @@ rootfs_initial: .stamp_rootfs_initial_generate
 	@$(MAKE) -C $(BUILD_ROOTFS_INITIAL_DIR) olddefconfig
 	@$(MAKE) -C $(BUILD_ROOTFS_INITIAL_DIR) source
 	@$(MAKE) -C $(BUILD_ROOTFS_INITIAL_DIR)
-	@install -D $(BUILD_ROOTFS_INITIAL_DIR)/images/rootfs.cpio $(BUILD_IMAGES_DIR)/rootfs_initial.cpio
+	@install -D $(BUILD_ROOTFS_INITIAL_DIR)/images/rootfs.cpio $(ARTIFACT_ROOTFS_INITIAL)
 	@touch $@
 
 .stamp_rootfs_initial_extract: .stamp_rootfs_initial_generate
 	@echo "=== $@ ==="
 	@rm -rf $(BUILD_ROOTFS_FINAL_DIR)
 	@mkdir -p $(BUILD_ROOTFS_FINAL_DIR)
-	@fakeroot -- cpio --extract --directory=$(BUILD_ROOTFS_FINAL_DIR) --make-directories --file=$(BUILD_IMAGES_DIR)/rootfs_initial.cpio
+	@fakeroot -- cpio --extract --directory=$(BUILD_ROOTFS_FINAL_DIR) --make-directories --file=$(ARTIFACT_ROOTFS_INITIAL)
 	@sed '/mknod.*console/d' -i $(BUILD_ROOTFS_FINAL_DIR)/init
 	@sed '/#!\/bin\/sh/amknod /dev/console c 5 1' -i $(BUILD_ROOTFS_FINAL_DIR)/init
 	@rm -f $(BUILD_ROOTFS_FINAL_DIR)/dev/console
@@ -140,7 +143,7 @@ rootfs_final: .stamp_rootfs_final_generate
 	@echo "=== $@ ==="
 .stamp_rootfs_final_generate: .stamp_rootfs_edit
 	@echo "=== $@ ==="
-	@fakeroot bash -c 'cd $(BUILD_ROOTFS_FINAL_DIR) && find . | cpio --create --format=newc' > $(BUILD_IMAGES_DIR)/rootfs_final.cpio
+	@fakeroot bash -c 'cd $(BUILD_ROOTFS_FINAL_DIR) && find . | cpio --create --format=newc' > $(ARTIFACT_ROOTFS_FINAL)
 	@touch $@
 
 tests: .stamp_linux .stamp_rootfs_final_generate
@@ -151,7 +154,7 @@ tests: .stamp_linux .stamp_rootfs_final_generate
 
 test: .stamp_linux .stamp_rootfs_final_generate
 	@echo "=== $@ ==="
-	@TMPDIR=$(shell mktemp -d) $(BUILD_IMAGES_DIR)/vmlinux mem=32M initrd=$(BUILD_IMAGES_DIR)/rootfs_final.cpio noreboot
+	@TMPDIR=$(shell mktemp -d) $(ARTIFACT_LINUX) mem=32M initrd=$(ARTIFACT_ROOTFS_FINAL) noreboot
 
 endif # ($(check_inside_docker),n) ########################################
 
