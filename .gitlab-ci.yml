@@ -23,7 +23,7 @@ cache:
 
 linux:
   script:
-    - make linux
+    - make V=1 linux
   artifacts:
     when: always
     expire_in: 4 hours
@@ -34,7 +34,7 @@ linux:
 
 rootfs_initial:
   script:
-    - make rootfs_initial
+    - make V=1 rootfs_initial
   artifacts:
     when: always
     expire_in: 4 hours
@@ -53,7 +53,7 @@ rootfs_final:
     - job: rootfs_initial
       artifacts: true
   script:
-    - make rootfs_final
+    - make V=1 rootfs_final
   artifacts:
     when: always
     expire_in: 4 hours
@@ -67,7 +67,7 @@ tests:
     - job: rootfs_final
       artifacts: true
   script:
-    - make tests
+    - make V=1 tests
   artifacts:
     when: always
     paths:
@@ -81,7 +81,7 @@ retest:
     - job: tests
       artifacts: true
   script:
-    - make retest
+    - make V=1 retest
   artifacts:
     when: always
     paths:
