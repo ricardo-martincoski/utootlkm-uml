@@ -14,7 +14,7 @@ BUILD_ROOTFS_INITIAL_DIR := $(BUILD_BASE_DIR)/rootfs_initial
 BUILD_ROOTFS_PARTIAL_DIR := $(BUILD_BASE_DIR)/rootfs_partial
 CACHE_DOWNLOAD_DIR := $(BASE_DIR)/download
 CACHE_LINUX_SRC := $(CACHE_DOWNLOAD_DIR)/linux/linux-5.10.165.tar.xz
-DOCKER_IMAGE := ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml
+URL_DOCKER_IMAGE := ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml
 ARTIFACT_LINUX_BIN := $(BUILD_IMAGES_DIR)/vmlinux
 ARTIFACT_LINUX_SRC_DIR := $(BUILD_IMAGES_DIR)/linux
 ARTIFACT_MODULES_PREPARE := $(BUILD_IMAGES_DIR)/modules
@@ -257,10 +257,10 @@ distclean: clean
 
 docker-image:
 	$(Q)echo "=== $@ ==="
-	$(Q)docker build -t registry.gitlab.com/$(DOCKER_IMAGE):$(date) support/docker
-	$(Q)sed -e 's,^image:.*,image: $$CI_REGISTRY/$(DOCKER_IMAGE):$(date),g' -i .gitlab-ci.yml
+	$(Q)docker build -t registry.gitlab.com/$(URL_DOCKER_IMAGE):$(date) support/docker
+	$(Q)sed -e 's,^image:.*,image: $$CI_REGISTRY/$(URL_DOCKER_IMAGE):$(date),g' -i .gitlab-ci.yml
 	$(Q)echo And now do:
-	$(Q)echo docker push registry.gitlab.com/$(DOCKER_IMAGE):$(date)
+	$(Q)echo docker push registry.gitlab.com/$(URL_DOCKER_IMAGE):$(date)
 
 help:
 	$(Q)echo "**utootlkm-uml** stands for *Unit Tests for Out-Of-Tree Linux Kernel Modules,"
