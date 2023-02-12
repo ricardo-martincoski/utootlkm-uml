@@ -2,19 +2,21 @@ BASE_DIR := $(shell readlink -f .)
 SRC_BUILDROOT_DIR := $(BASE_DIR)/buildroot
 SRC_CONFIGS_DIR := $(BASE_DIR)/configs
 SRC_DRIVERS_DIR := $(BASE_DIR)/drivers
-SRC_LINUX_DIR := $(BASE_DIR)/linux
 OUTPUT_DIR := $(BASE_DIR)/output
 BUILD_BASE_DIR := $(OUTPUT_DIR)/build
 BUILD_IMAGES_DIR := $(OUTPUT_DIR)/images
 BUILD_TESTS_DIR := $(OUTPUT_DIR)/tests
 BUILD_DRIVERS_DIR := $(BUILD_BASE_DIR)/drivers
 BUILD_LINUX_DIR := $(BUILD_BASE_DIR)/linux
+BUILD_LINUX_DOWNLOAD_DIR := $(BUILD_BASE_DIR)/linux_download
 BUILD_ROOTFS_FINAL_DIR := $(BUILD_BASE_DIR)/rootfs_final
 BUILD_ROOTFS_INITIAL_DIR := $(BUILD_BASE_DIR)/rootfs_initial
 BUILD_ROOTFS_PARTIAL_DIR := $(BUILD_BASE_DIR)/rootfs_partial
 CACHE_DOWNLOAD_DIR := $(BASE_DIR)/download
+CACHE_LINUX_SRC := $(CACHE_DOWNLOAD_DIR)/linux/linux-5.10.165.tar.xz
 DOCKER_IMAGE := ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml
-ARTIFACT_LINUX := $(BUILD_IMAGES_DIR)/vmlinux
+ARTIFACT_LINUX_BIN := $(BUILD_IMAGES_DIR)/vmlinux
+ARTIFACT_LINUX_SRC_DIR := $(BUILD_IMAGES_DIR)/linux
 ARTIFACT_MODULES_PREPARE := $(BUILD_IMAGES_DIR)/modules
 ARTIFACT_ROOTFS_FINAL := $(BUILD_IMAGES_DIR)/rootfs_final.cpio
 ARTIFACT_ROOTFS_INITIAL := $(BUILD_IMAGES_DIR)/rootfs_initial.cpio
@@ -43,6 +45,7 @@ real_targets_outside_docker := \
 
 real_targets_inside_docker := \
 	.stamp_linux \
+	.stamp_linux_extract \
 	.stamp_modules_intree \
 	.stamp_modules_out_of_tree \
 	.stamp_modules_prepare \
@@ -63,6 +66,7 @@ phony_targets_outside_docker := \
 
 phony_targets_inside_docker := \
 	linux \
+	linux-extract \
 	modules-intree \
 	modules-out-of-tree \
 	modules-prepare \
@@ -83,16 +87,30 @@ $(real_targets_inside_docker) $(phony_targets_inside_docker): .stamp_submodules
 
 else # ($(check_inside_docker),n) ########################################
 
+linux-extract: .stamp_linux_extract
+	$(Q)echo "=== $@ ==="
+.stamp_linux_extract: .stamp_submodules
+	$(Q)echo "=== $@ ==="
+	$(Q)rm -rf $(BUILD_LINUX_DOWNLOAD_DIR)
+	$(Q)$(MAKE) O=$(BUILD_LINUX_DOWNLOAD_DIR) -C $(SRC_BUILDROOT_DIR) defconfig
+	$(Q)install -D $(SRC_CONFIGS_DIR)/linux_download_defconfig $(BUILD_LINUX_DOWNLOAD_DIR)/.config
+	$(Q)$(MAKE) -C $(BUILD_LINUX_DOWNLOAD_DIR) olddefconfig
+	$(Q)$(MAKE) -C $(BUILD_LINUX_DOWNLOAD_DIR) linux-source
+	$(Q)rm -rf $(ARTIFACT_LINUX_SRC_DIR)
+	$(Q)mkdir -p $(ARTIFACT_LINUX_SRC_DIR)
+	$(Q)tar --extract --strip-components=1 --directory=$(ARTIFACT_LINUX_SRC_DIR) --file=$(CACHE_LINUX_SRC)
+	$(Q)touch $@
+
 linux: .stamp_linux
 	$(Q)echo "=== $@ ==="
-.stamp_linux: .stamp_submodules
+.stamp_linux: .stamp_linux_extract
 	$(Q)echo "=== $@ ==="
 	$(Q)rm -rf $(BUILD_LINUX_DIR)
-	$(Q)$(MAKE) ARCH=um O=$(BUILD_LINUX_DIR) -C $(SRC_LINUX_DIR) defconfig
+	$(Q)$(MAKE) ARCH=um O=$(BUILD_LINUX_DIR) -C $(ARTIFACT_LINUX_SRC_DIR) defconfig
 	$(Q)install -D $(SRC_CONFIGS_DIR)/linux.defconfig $(BUILD_LINUX_DIR)/.config
 	$(Q)$(MAKE) ARCH=um -C $(BUILD_LINUX_DIR) olddefconfig
 	$(Q)$(MAKE) ARCH=um -C $(BUILD_LINUX_DIR)
-	$(Q)install -D $(BUILD_LINUX_DIR)/vmlinux $(ARTIFACT_LINUX)
+	$(Q)install -D $(BUILD_LINUX_DIR)/vmlinux $(ARTIFACT_LINUX_BIN)
 	$(Q)touch $@
 
 modules-intree: .stamp_modules_intree
@@ -104,9 +122,9 @@ modules-intree: .stamp_modules_intree
 
 modules-prepare: .stamp_modules_prepare
 	$(Q)echo "=== $@ ==="
-.stamp_modules_prepare:
+.stamp_modules_prepare: .stamp_linux_extract
 	$(Q)echo "=== $@ ==="
-	$(Q)$(MAKE) ARCH=um O=$(ARTIFACT_MODULES_PREPARE) -C $(SRC_LINUX_DIR) defconfig
+	$(Q)$(MAKE) ARCH=um O=$(ARTIFACT_MODULES_PREPARE) -C $(ARTIFACT_LINUX_SRC_DIR) defconfig
 	$(Q)install -D $(SRC_CONFIGS_DIR)/linux.defconfig $(ARTIFACT_MODULES_PREPARE)/.config
 	$(Q)$(MAKE) ARCH=um -C $(ARTIFACT_MODULES_PREPARE) olddefconfig
 	$(Q)$(MAKE) ARCH=um -C $(ARTIFACT_MODULES_PREPARE) modules_prepare
@@ -178,7 +196,7 @@ run-all-tests: .stamp_linux .stamp_rootfs_final_generate
 
 start-vm: .stamp_linux .stamp_rootfs_final_generate
 	$(Q)echo "=== $@ ==="
-	$(Q)TMPDIR=$(shell mktemp -d) $(ARTIFACT_LINUX) mem=32M initrd=$(ARTIFACT_ROOTFS_FINAL) noreboot
+	$(Q)TMPDIR=$(shell mktemp -d) $(ARTIFACT_LINUX_BIN) mem=32M initrd=$(ARTIFACT_ROOTFS_FINAL) noreboot
 
 endif # ($(check_inside_docker),n) ########################################
 
@@ -213,7 +231,6 @@ clean: clean-stamps
 distclean: clean
 	$(Q)echo "=== $@ ==="
 	$(Q)rm -rf $(SRC_BUILDROOT_DIR)
-	$(Q)rm -rf $(SRC_LINUX_DIR)
 	$(Q)rm -rf $(CACHE_DOWNLOAD_DIR)
 
 docker-image:

@@ -48,7 +48,7 @@ for test in modules:
         f.write(raw)
     print(raw)
 
-    cmd = 'bash -c "cd linux && ./tools/testing/kunit/kunit.py parse ../{}"'.format(test_dmesg)
+    cmd = 'bash -c "cd output/images/linux && ./tools/testing/kunit/kunit.py parse ../../../{}"'.format(test_dmesg)
     parser = pexpect.spawn(cmd, encoding='utf-8', logfile=test_parse)
     parser.expect(pexpect.EOF)
     output = parser.before
