@@ -9,13 +9,13 @@ BUILD_IMAGES_DIR := $(OUTPUT_DIR)/images
 BUILD_TESTS_DIR := $(OUTPUT_DIR)/tests
 BUILD_DRIVERS_DIR := $(BUILD_BASE_DIR)/drivers
 BUILD_LINUX_DIR := $(BUILD_BASE_DIR)/linux
-BUILD_MODULES_DIR := $(BUILD_BASE_DIR)/modules
 BUILD_ROOTFS_FINAL_DIR := $(BUILD_BASE_DIR)/rootfs_final
 BUILD_ROOTFS_INITIAL_DIR := $(BUILD_BASE_DIR)/rootfs_initial
 BUILD_ROOTFS_PARTIAL_DIR := $(BUILD_BASE_DIR)/rootfs_partial
 CACHE_DOWNLOAD_DIR := $(BASE_DIR)/download
 DOCKER_IMAGE := ricardomartincoski_opensource/utootlkm-uml/utootlkm-uml
 ARTIFACT_LINUX := $(BUILD_IMAGES_DIR)/vmlinux
+ARTIFACT_MODULES_PREPARE := $(BUILD_IMAGES_DIR)/modules
 ARTIFACT_ROOTFS_FINAL := $(BUILD_IMAGES_DIR)/rootfs_final.cpio
 ARTIFACT_ROOTFS_INITIAL := $(BUILD_IMAGES_DIR)/rootfs_initial.cpio
 ARTIFACT_ROOTFS_PARTIAL := $(BUILD_IMAGES_DIR)/rootfs_partial.cpio
@@ -106,10 +106,10 @@ modules-prepare: .stamp_modules_prepare
 	$(Q)echo "=== $@ ==="
 .stamp_modules_prepare:
 	$(Q)echo "=== $@ ==="
-	$(Q)$(MAKE) ARCH=um O=$(BUILD_MODULES_DIR) -C $(SRC_LINUX_DIR) defconfig
-	$(Q)install -D $(SRC_CONFIGS_DIR)/linux.defconfig $(BUILD_MODULES_DIR)/.config
-	$(Q)$(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) olddefconfig
-	$(Q)$(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) modules_prepare
+	$(Q)$(MAKE) ARCH=um O=$(ARTIFACT_MODULES_PREPARE) -C $(SRC_LINUX_DIR) defconfig
+	$(Q)install -D $(SRC_CONFIGS_DIR)/linux.defconfig $(ARTIFACT_MODULES_PREPARE)/.config
+	$(Q)$(MAKE) ARCH=um -C $(ARTIFACT_MODULES_PREPARE) olddefconfig
+	$(Q)$(MAKE) ARCH=um -C $(ARTIFACT_MODULES_PREPARE) modules_prepare
 	$(Q)touch $@
 
 modules-out-of-tree: .stamp_modules_out_of_tree
@@ -121,8 +121,8 @@ modules-out-of-tree: .stamp_modules_out_of_tree
 	$(Q)$(foreach driver, $(wildcard $(SRC_DRIVERS_DIR)/*),\
 		echo "--- $@ $(notdir $(driver)) ---" $(newline)\
 		rsync -vau $(driver)/ $(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ $(newline) \
-		$(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) M=$(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ $(newline) \
-		$(MAKE) ARCH=um -C $(BUILD_MODULES_DIR) M=$(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ modules_install INSTALL_MOD_PATH=$(BUILD_ROOTFS_FINAL_DIR) $(newline) \
+		$(MAKE) ARCH=um -C $(ARTIFACT_MODULES_PREPARE) M=$(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ $(newline) \
+		$(MAKE) ARCH=um -C $(ARTIFACT_MODULES_PREPARE) M=$(BUILD_DRIVERS_DIR)/$(notdir $(driver))/ modules_install INSTALL_MOD_PATH=$(BUILD_ROOTFS_FINAL_DIR) $(newline) \
 		)
 	$(Q)touch $@
 
