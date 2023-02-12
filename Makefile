@@ -59,6 +59,7 @@ real_targets_inside_docker := \
 targets_to_rebuild_on_rerun := \
 	.stamp_modules_out_of_tree \
 	.stamp_rootfs_final_generate \
+	.stamp_rootfs_partial_extract \
 
 phony_targets_outside_docker := \
 	all \
