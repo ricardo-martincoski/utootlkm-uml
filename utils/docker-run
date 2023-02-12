@@ -1,15 +1,20 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 # copied from Buildroot 2022.02.9
+# and then updated:
+# - to always use the same path '/build' so an SDK generated in clone in one
+#   path can be used in a clone in a different path
+
 set -o errexit -o pipefail
 DIR=$(dirname "${0}")
 MAIN_DIR=$(readlink -f "${DIR}/..")
+MAIN_DIR_INSIDE=/build
 # shellcheck disable=SC2016
 IMAGE=$(grep ^image: "${MAIN_DIR}/.gitlab-ci.yml" | \
         sed -e 's,^image: ,,g' | sed -e 's,\$CI_REGISTRY,registry.gitlab.com,g')
 
 exec docker run -it --rm \
     --user $(id -u):$(id -g) \
-    --mount "type=bind,src=${MAIN_DIR},dst=${MAIN_DIR}" \
-    --workdir "${MAIN_DIR}" \
+    --mount "type=bind,src=${MAIN_DIR},dst=${MAIN_DIR_INSIDE}" \
+    --workdir "${MAIN_DIR_INSIDE}" \
     "${IMAGE}" "${@}"

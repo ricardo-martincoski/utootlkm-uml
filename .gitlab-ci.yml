@@ -119,3 +119,33 @@ rerun-all-tests:
       - output/build/*/.config
       - output/images/
       - output/tests/
+
+sdk-generate:
+  needs:
+    - job: modules-prepare
+      artifacts: true
+    - job: rootfs-partial
+      artifacts: true
+    - job: linux
+      artifacts: true
+  script:
+    - make V=1 sdk-generate
+  artifacts:
+    when: always
+    paths:
+      - sdk-utootlkm-uml.tar.xz
+
+sdk-extract+run-all-tests:
+  needs:
+    - job: sdk-generate
+      artifacts: true
+  script:
+    - make V=1 sdk-extract
+    - make V=1 run-all-tests
+  artifacts:
+    when: always
+    paths:
+      - .stamp_*
+      - output/build/*/.config
+      - output/images/
+      - output/tests/

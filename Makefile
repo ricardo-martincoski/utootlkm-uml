@@ -21,6 +21,7 @@ ARTIFACT_MODULES_PREPARE := $(BUILD_IMAGES_DIR)/modules
 ARTIFACT_ROOTFS_FINAL := $(BUILD_IMAGES_DIR)/rootfs_final.cpio
 ARTIFACT_ROOTFS_INITIAL := $(BUILD_IMAGES_DIR)/rootfs_initial.cpio
 ARTIFACT_ROOTFS_PARTIAL := $(BUILD_IMAGES_DIR)/rootfs_partial.cpio
+ARTIFACT_SDK := $(BASE_DIR)/sdk-utootlkm-uml.tar.xz
 
 # make V=1 will enable verbose mode
 V ?= 0
@@ -55,6 +56,10 @@ real_targets_inside_docker := \
 	.stamp_rootfs_partial_extract \
 	.stamp_rootfs_partial_generate \
 
+targets_to_rebuild_on_rerun := \
+	.stamp_modules_out_of_tree \
+	.stamp_rootfs_final_generate \
+
 phony_targets_outside_docker := \
 	all \
 	clean \
@@ -62,6 +67,8 @@ phony_targets_outside_docker := \
 	distclean \
 	help \
 	rerun-all-tests \
+	sdk-extract \
+	sdk-generate \
 	submodules \
 
 phony_targets_inside_docker := \
@@ -202,8 +209,23 @@ endif # ($(check_inside_docker),n) ########################################
 
 rerun-all-tests:
 	$(Q)echo "=== $@ ==="
-	$(Q)rm -f .stamp_modules_out_of_tree .stamp_rootfs_final_generate
+	$(Q)rm -f $(targets_to_rebuild_on_rerun)
 	$(Q)$(MAKE) run-all-tests
+
+sdk-generate: .stamp_linux .stamp_rootfs_partial_generate .stamp_modules_prepare
+	$(Q)echo "=== $@ ==="
+	$(Q)tar --create --xz --file=$(ARTIFACT_SDK) .stamp* \
+		$(foreach f, \
+			$(ARTIFACT_LINUX_BIN) \
+			$(ARTIFACT_LINUX_SRC_DIR) \
+			$(ARTIFACT_MODULES_PREPARE) \
+			$(ARTIFACT_ROOTFS_PARTIAL) \
+			, $(subst $(BASE_DIR)/,,$(f)))
+
+sdk-extract: .stamp_submodules
+	$(Q)echo "=== $@ ==="
+	$(Q)tar --extract --file=$(ARTIFACT_SDK)
+	$(Q)rm -f $(targets_to_rebuild_on_rerun)
 
 all: .stamp_all
 	$(Q)echo "=== $@ ==="
@@ -257,17 +279,21 @@ help:
 	$(Q)echo "  make distclean - 'clean' + force submodule to be cloned"
 	$(Q)echo "  make docker-image - generate a new docker image to be uploaded"
 	$(Q)echo "  make V=1 <target> - calls the target enabling verbose output"
+	$(Q)echo "  make sdk-generate - prebuild dependencies to test out-of-tree drivers"
+	$(Q)echo "  make sdk-extract - extract prebuilt dependencies to test out-of-tree drivers"
 	$(Q)echo ""
 	$(Q)echo "Dependencies:"
-	$(Q)echo "             rootfs-initial    modules-intree"
-	$(Q)echo "                         |      |          ^"
-	$(Q)echo "                         |      |          |"
-	$(Q)echo "                         v      v          |"
-	$(Q)echo " modules-prepare        rootfs-partial    linux"
-	$(Q)echo "  |                      |                 |"
-	$(Q)echo "  v                      v                 v"
-	$(Q)echo " modules-out-of-tree -> rootfs-final ---> run-all-tests"
-	$(Q)echo " ^^                     ^^                ^^"
-	$(Q)echo " ||                     ||                ||"
-	$(Q)echo " ++=====================++================++== rerun-all-tests"
+	$(Q)echo " +------------------------------------------------+"
+	$(Q)echo " |             rootfs-initial    modules-intree   |"
+	$(Q)echo " |                         |      |          ^    |--> sdk-generate"
+	$(Q)echo " |                         |      |          |    |"
+	$(Q)echo " |                         v      v          |    |<-- sdk-extract"
+	$(Q)echo " | modules-prepare        rootfs-partial    linux |"
+	$(Q)echo " |  |                      |                 |    |"
+	$(Q)echo " +--|----------------------|-----------------|----+"
+	$(Q)echo "    v                      v                 v"
+	$(Q)echo "   modules-out-of-tree -> rootfs-final ---> run-all-tests"
+	$(Q)echo "   ^^                     ^^                ^^"
+	$(Q)echo "   ||                     ||                ||"
+	$(Q)echo "   ++=====================++================++== rerun-all-tests"
 	$(Q)echo ""
