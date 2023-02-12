@@ -215,7 +215,7 @@ rerun-all-tests:
 
 sdk-generate: .stamp_linux .stamp_rootfs_partial_generate .stamp_modules_prepare
 	$(Q)echo "=== $@ ==="
-	$(Q)tar --create --xz --file=$(ARTIFACT_SDK) .stamp* \
+	$(Q)tar --verbose --create --xz --file=$(ARTIFACT_SDK) .stamp* \
 		$(foreach f, \
 			$(ARTIFACT_LINUX_BIN) \
 			$(ARTIFACT_LINUX_SRC_DIR) \
